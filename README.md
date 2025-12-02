@@ -1,2 +1,2 @@
-<h1 style= 'color:"#989cca"'>Hello And Welcome for All visitors</h1>
+<h1 style="color: orange;" >Hello And Welcome for All visitors</h1>
 <p>This Repo discuss our journey in DEPI Round 4 Scholarship in Machine Learning Engineer Track</p>
