@@ -1,0 +1,32 @@
+[
+    {
+        "UserID": 123456,
+        "UserName": "alice",
+        "PinPassword": 1234,
+        "Balance": 500
+    },
+    {
+        "UserID": 234567,
+        "UserName": "bob",
+        "PinPassword": 5678,
+        "Balance": 1000
+    },
+    {
+        "UserID": 345678,
+        "UserName": "charlie",
+        "PinPassword": 9012,
+        "Balance": 750
+    },
+    {
+        "UserID": 338430,
+        "UserName": "ahmed",
+        "PinPassword": 1234,
+        "Balance": 0
+    },
+    {
+        "UserID": 786829,
+        "UserName": "ahmed wael",
+        "PinPassword": 1234,
+        "Balance": 866
+    }
+]
