@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boston Housing Prediction AI</title>
+    <!-- Modern Google Font: Outfit & Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root[data-theme="dark"] {
+            --bg-gradient: linear-gradient(135deg, #0f172a, #1e1b4b, #311042);
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --input-bg: rgba(0,0,0,0.2);
+            --input-border: rgba(255,255,255,0.03);
+            --accent-primary: #8b5cf6;
+            --accent-glow: rgba(139, 92, 246, 0.5);
+            --accent-hover: #a78bfa;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --info-color: #3b82f6;
+            --chart-grid: rgba(255,255,255,0.1);
+            --chart-text: #94a3b8;
+        }
+
+        :root[data-theme="light"] {
+            --bg-gradient: linear-gradient(135deg, #f8fafc, #e2e8f0, #cbd5e1);
+            --card-bg: rgba(255, 255, 255, 0.9);
+            --card-border: rgba(0, 0, 0, 0.1);
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --input-bg: rgba(255,255,255,1);
+            --input-border: rgba(0,0,0,0.1);
+            --accent-primary: #7c3aed;
+            --accent-glow: rgba(124, 58, 237, 0.3);
+            --accent-hover: #6d28d9;
+            --success-color: #059669;
+            --warning-color: #d97706;
+            --danger-color: #dc2626;
+            --info-color: #2563eb;
+            --chart-grid: rgba(0,0,0,0.1);
+            --chart-text: #475569;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            background-size: 200% 200%;
+            animation: gradientMove 15s ease infinite;
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        @keyframes gradientMove {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .navbar {
+            padding: 1rem 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--card-border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-brand {
+            font-family: 'Outfit', sans-serif;
+            font-size: clamp(1.2rem, 3vw, 1.5rem);
+            font-weight: 700;
+            background: linear-gradient(to right, #c4b5fd, #a78bfa, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .theme-toggle {
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            color: var(--accent-primary);
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            cursor: pointer;
+            font-weight: 600;
+            font-family: 'Outfit', sans-serif;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(139, 92, 246, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            padding: 2rem 5%;
+            margin: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        /* Glassmorphism Card Style */
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: clamp(1.5rem, 4vw, 2.5rem);
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            width: 100%;
+        }
+
+        .section-header {
+            font-family: 'Outfit', sans-serif;
+            font-size: clamp(1.5rem, 3vw, 1.8rem);
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 0.5rem;
+            word-wrap: break-word;
+        }
+
+        /* Engine Layout */
+        .engine-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: clamp(1.5rem, 3vw, 2.5rem);
+            align-items: start;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+            background: var(--input-bg);
+            padding: 1.2rem;
+            border-radius: 12px;
+            border: 1px solid var(--input-border);
+            width: 100%;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.2rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        label {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .feature-explanation {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            display: block;
+            margin-bottom: 0.8rem;
+            font-style: italic;
+            line-height: 1.4;
+        }
+
+        .slider-value {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            color: var(--accent-primary);
+            font-size: 1rem;
+            background: rgba(139, 92, 246, 0.1);
+            padding: 0.2rem 0.6rem;
+            border-radius: 8px;
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            min-width: 45px;
+            text-align: center;
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+            margin: 5px 0;
+        }
+        
+        input[type=range]:focus { outline: none; }
+        
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: var(--card-border);
+            border-radius: 4px;
+        }
+        
+        input[type=range]::-webkit-slider-thumb {
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: var(--accent-primary);
+            cursor: pointer;
+            -webkit-appearance: none;
+            margin-top: -7px;
+            box-shadow: 0 0 10px var(--accent-glow);
+            transition: transform 0.2s ease;
+        }
+
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+        button {
+            width: 100%;
+            background: var(--accent-primary);
+            color: white;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            font-size: 1.125rem;
+            border: none;
+            border-radius: 12px;
+            padding: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            box-shadow: 0 4px 15px var(--accent-glow);
+        }
+
+        button:hover {
+            background: var(--accent-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px var(--accent-glow);
+        }
+
+        .btn-large {
+            padding: 1.2rem;
+            font-size: clamp(1rem, 2vw, 1.25rem);
+            margin-top: 1rem;
+            width: 100%;
+        }
+
+        /* Results Engine */
+        .output-box {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background: var(--input-bg);
+            padding: 2rem;
+            border-radius: 16px;
+            border: 1px solid var(--input-border);
+            height: 100%;
+            min-height: 250px;
+            text-align: center;
+        }
+
+        .price-display {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 700;
+            font-family: 'Outfit', sans-serif;
+            color: var(--success-color);
+            margin: 1rem 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            word-wrap: break-word;
+            word-break: break-all;
+        }
+
+        [data-theme="dark"] .price-display {
+            text-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+        }
+
+        /* Dashboard */
+        .metric-selector {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            padding: 15px;
+            background: var(--input-bg);
+            border-radius: 12px;
+            border: 1px solid var(--input-border);
+            margin-bottom: 1.5rem;
+            gap: 1rem;
+        }
+
+        .metric-selector span {
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        select {
+            background: var(--bg-gradient);
+            color: var(--text-primary);
+            border: 1px solid var(--card-border);
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            outline: none;
+            cursor: pointer;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .models-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: clamp(1rem, 2.5vw, 2rem);
+        }
+
+        .model-card {
+            background: var(--input-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: clamp(1rem, 3vw, 1.5rem);
+            position: relative;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .model-card.winner {
+            border-color: var(--success-color);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
+        }
+
+        [data-theme="dark"] .model-card.winner {
+            background: rgba(16, 185, 129, 0.05);
+        }
+        [data-theme="light"] .model-card.winner {
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .model-card.winner::after {
+            content: '⭐ Best Model';
+            position: absolute;
+            top: -12px;
+            right: 15px;
+            background: var(--success-color);
+            color: white;
+            font-size: 0.75rem;
+            font-weight: bold;
+            padding: 4px 10px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+        }
+
+        .model-card h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: clamp(1rem, 2.5vw, 1.2rem);
+            text-align: center;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 0.8rem;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* Wrap tables nicely */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .metric-table {
+            width: 100%;
+            font-size: clamp(0.8rem, 2vw, 0.95rem);
+            border-collapse: collapse;
+            white-space: nowrap;
+        }
+
+        .metric-table th {
+            text-align: left;
+            color: var(--text-secondary);
+            font-weight: 600;
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .metric-table td {
+            padding: 10px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .val-train {
+            color: var(--info-color);
+            font-family: monospace;
+            font-weight: bold;
+        }
+
+        .val-test {
+            color: var(--accent-primary);
+            font-family: monospace;
+            font-weight: bold;
+        }
+
+        .overfit-warning {
+            color: var(--warning-color);
+            font-size: 0.85rem;
+            display: none;
+            margin-top: auto;
+            padding-top: 15px;
+            text-align: center;
+            font-weight: 600;
+            background: rgba(245, 158, 11, 0.1);
+            border-radius: 8px;
+            padding: 10px;
+        }
+        .overfit-warning.show {
+            display: block;
+            margin-top: 15px;
+        }
+
+        /* Chart Section */
+        .chart-container {
+            width: 100%;
+            height: clamp(300px, 50vh, 500px);
+            position: relative;
+            background: var(--input-bg);
+            border-radius: 16px;
+            padding: 10px;
+            border: 1px solid var(--input-border);
+        }
+
+        .chart-placeholder {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--text-secondary);
+            text-align: center;
+            pointer-events: none;
+            font-weight: 500;
+        }
+
+        .spinner {
+            display: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .sys-log {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 10px;
+            opacity: 0.8;
+        }
+
+        /* MEDIA QUERIES FOR RESPONSIVENESS */
+        @media (max-width: 900px) {
+            .engine-grid {
+                grid-template-columns: 1fr;
+            }
+            .models-grid {
+                grid-template-columns: 1fr;
+            }
+            .metric-selector {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            select {
+                max-width: 100%;
+            }
+            .output-box {
+                min-height: auto;
+                padding: 1.5rem;
+            }
+        }
+        
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="nav-brand">Boston Housing AI</div>
+        <button class="theme-toggle" id="themeToggle">☀️ Light Mode</button>
+    </nav>
+
+    <div class="container">
+        
+        <!-- SECTION 1: Prediction Engine -->
+        <section class="glass-card">
+            <h2 class="section-header">Prediction Engine</h2>
+            
+            <div class="engine-grid">
+                <!-- Inputs -->
+                <form id="predictForm">
+                    <div class="form-group">
+                        <div class="slider-header">
+                            <label for="rooms">Avg. Rooms (RM)</label>
+                            <span class="slider-value" id="rm-val">6.0</span>
+                        </div>
+                        <span class="feature-explanation">Higher values indicate larger homes, generally increasing the house price.</span>
+                        <input type="range" id="rooms" name="RM" min="3.0" max="9.0" step="0.1" value="6.0" oninput="document.getElementById('rm-val').textContent = this.value">
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="slider-header">
+                            <label for="lstat">% Lower Status (LSTAT)</label>
+                            <span class="slider-value" id="lstat-val">12.0</span>
+                        </div>
+                        <span class="feature-explanation">Percentage of population considered lower socio-economic status. Lower is better.</span>
+                        <input type="range" id="lstat" name="LSTAT" min="1.0" max="40.0" step="0.1" value="12.0" oninput="document.getElementById('lstat-val').textContent = this.value">
+                    </div>
+
+                    <div class="form-group">
+                        <div class="slider-header">
+                            <label for="ptratio">Pupil-Teacher Ratio</label>
+                            <span class="slider-value" id="ptratio-val">18.0</span>
+                        </div>
+                        <span class="feature-explanation">Ratio of students to teachers in local schools. Lower ratios indicate better education funding.</span>
+                        <input type="range" id="ptratio" name="PTRATIO" min="12.0" max="22.0" step="0.1" value="18.0" oninput="document.getElementById('ptratio-val').textContent = this.value">
+                    </div>
+
+                    <button type="submit" id="predictBtn" style="display:none;">Predict</button>
+                </form>
+
+                <!-- Outputs -->
+                <div class="output-box">
+                    <p style="margin-bottom: 0; font-weight: 500; font-size: 1.1rem;">Predicted Home Value</p>
+                    <div class="price-display" id="priceValue">---</div>
+                    <div class="sys-log" id="systemMessage">Ready for predictions. Awaiting user input...</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ACTION BUTTON -->
+        <button class="btn-large" id="trainBtn">
+            <span>Evaluate & Generate Charts</span>
+            <div class="spinner"></div>
+        </button>
+
+        <!-- SECTION 2: Evaluation Dashboard (Hidden initially) -->
+        <section class="glass-card" id="evalSection" style="display: none;">
+            <h2 class="section-header">Performance Dashboard</h2>
+            
+            <div class="metric-selector">
+                <span style="color: var(--text-secondary);">Select Winning Metric: </span>
+                <select id="metricSelect">
+                    <option value="r2">R² Score (Higher is better)</option>
+                    <option value="rmse">RMSE (Lower is better)</option>
+                    <option value="mse">MSE (Lower is better)</option>
+                    <option value="mae">MAE (Lower is better)</option>
+                </select>
+            </div>
+            
+            <div class="models-grid">
+                <!-- Linear -->
+                <div class="model-card" id="linearCard">
+                    <h4>Linear Regression</h4>
+                    <div class="table-responsive">
+                        <table class="metric-table">
+                            <thead>
+                                <tr><th>Metric</th><th>Train Set</th><th>Test Set</th></tr>
+                            </thead>
+                            <tbody id="lin-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="overfit-warning" id="lin-warning">⚠️ Potential Underfitting Detected</div>
+                </div>
+                
+                <!-- Polynomial -->
+                <div class="model-card" id="polyCard">
+                    <h4>Polynomial Regression</h4>
+                    <div class="table-responsive">
+                        <table class="metric-table">
+                            <thead>
+                                <tr><th>Metric</th><th>Train Set</th><th>Test Set</th></tr>
+                            </thead>
+                            <tbody id="poly-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="overfit-warning" id="poly-warning">⚠️ Warning: Model is significantly overfitting the Training Data.</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 3: Visualizations (Hidden initially) -->
+        <section class="glass-card" id="chartSection" style="display: none;">
+            <h2 class="section-header">Visualizations: Actual vs Predicted</h2>
+            <div class="chart-container">
+                <div class="chart-placeholder" id="chartPlaceholder">Loading Chart Data...</div>
+                <canvas id="scatterChart"></canvas>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        // Theme Toggle Logic
+        const themeToggle = document.getElementById('themeToggle');
+        const rootElement = document.documentElement;
+        let chartInstance = null;
+
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = rootElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            rootElement.setAttribute('data-theme', newTheme);
+            themeToggle.textContent = newTheme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
+            
+            // Re-render chart to match theme colors if it exists
+            if (chartInstance) {
+                updateChartTheme(newTheme);
+            }
+        });
+
+        // Store global results
+        let lastEvaluationData = null;
+
+        // Auto Prediction
+        const formInputs = document.querySelectorAll('input[type=range]');
+        let timeout = null;
+        formInputs.forEach(input => {
+            input.addEventListener('input', () => {
+                // Debounce simple predictions
+                clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    document.getElementById('predictBtn').click();
+                }, 100);
+            });
+        });
+
+        document.getElementById('predictForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = Object.fromEntries(new FormData(e.target).entries());
+            const priceValue = document.getElementById('priceValue');
+            const systemMsg = document.getElementById('systemMessage');
+            
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ features: data })
+                });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    priceValue.textContent = result.prediction;
+                    systemMsg.innerHTML = `<span style="color: var(--success-color);">●</span> Live Prediction returned dynamically.`;
+                } else {
+                    systemMsg.innerHTML = `<span style="color: var(--danger-color);">●</span> Error: ${result.message}`;
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        // Evaluate & Chart
+        document.getElementById('trainBtn').addEventListener('click', async (e) => {
+            const btn = document.getElementById('trainBtn');
+            const spinner = btn.querySelector('.spinner');
+            const btnText = btn.querySelector('span');
+            
+            btn.disabled = true; spinner.style.display = 'block'; btnText.style.display = 'none';
+
+            try {
+                const response = await fetch('/train', { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    lastEvaluationData = result;
+                    
+                    // Show sections
+                    document.getElementById('evalSection').style.display = 'block';
+                    document.getElementById('chartSection').style.display = 'block';
+                    
+                    populateTables(result);
+                    applyWinnerHighlight();
+                    renderChart(result.scatter_data);
+                    
+                    // Trigger a predict so it updates immediately to use best model
+                    document.getElementById('predictBtn').click();
+                } else {
+                    alert("Error evaluating models: " + result.message);
+                }
+            } catch (err) {
+                alert("Connection failed.");
+            } finally {
+                btn.disabled = false; spinner.style.display = 'none'; btnText.style.display = 'block';
+            }
+        });
+
+        document.getElementById('metricSelect').addEventListener('change', () => {
+            if (lastEvaluationData) applyWinnerHighlight();
+        });
+
+        // Safely format large floats or unhandled numbers
+        function formatNum(val) { 
+            if(val === undefined || val === null) return "--";
+            return Number(val).toFixed(3); 
+        }
+
+        function populateTables(result) {
+            const metrics = ['r2', 'rmse', 'mse', 'mae'];
+            const labels = ['R² Score', 'RMSE', 'MSE', 'MAE'];
+
+            const linTb = document.getElementById('lin-tbody');
+            const polyTb = document.getElementById('poly-tbody');
+            linTb.innerHTML = ''; polyTb.innerHTML = '';
+
+            for (let i = 0; i < metrics.length; i++) {
+                const m = metrics[i];
+                const l = labels[i];
+
+                linTb.innerHTML += `
+                    <tr>
+                        <td style="font-weight: 500;">${l}</td>
+                        <td class="val-train">${formatNum(result.linear_metrics.train[m])}</td>
+                        <td class="val-test">${formatNum(result.linear_metrics.test[m])}</td>
+                    </tr>
+                `;
+
+                polyTb.innerHTML += `
+                    <tr>
+                        <td style="font-weight: 500;">${l}</td>
+                        <td class="val-train">${formatNum(result.poly_metrics.train[m])}</td>
+                        <td class="val-test">${formatNum(result.poly_metrics.test[m])}</td>
+                    </tr>
+                `;
+            }
+
+            // Overfit heuristic
+            const polyR2Train = result.poly_metrics.train.r2;
+            const polyR2Test = result.poly_metrics.test.r2;
+            const linR2Test = result.linear_metrics.test.r2;
+
+            if (polyR2Train - polyR2Test > 0.10 || polyR2Test < linR2Test) {
+                document.getElementById('poly-warning').classList.add('show');
+            } else {
+                document.getElementById('poly-warning').classList.remove('show');
+            }
+            
+            if (result.linear_metrics.train.r2 < 0.6) {
+                document.getElementById('lin-warning').classList.add('show');
+            } else {
+                document.getElementById('lin-warning').classList.remove('show');
+            }
+        }
+
+        function applyWinnerHighlight() {
+            const metric = document.getElementById('metricSelect').value;
+            const linScore = lastEvaluationData.linear_metrics.test[metric];
+            const polyScore = lastEvaluationData.poly_metrics.test[metric];
+
+            let linearWins = false;
+            if (metric === 'r2') { linearWins = linScore > polyScore; } 
+            else { linearWins = linScore < polyScore; }
+
+            document.getElementById('linearCard').classList.remove('winner');
+            document.getElementById('polyCard').classList.remove('winner');
+
+            if (linearWins) {
+                document.getElementById('linearCard').classList.add('winner');
+            } else {
+                document.getElementById('polyCard').classList.add('winner');
+            }
+        }
+
+        // --- Chart.js Integration ---
+        function renderChart(scatterData) {
+            document.getElementById('chartPlaceholder').style.display = 'none';
+            const ctx = document.getElementById('scatterChart').getContext('2d');
+            
+            const rootStyle = getComputedStyle(document.documentElement);
+            const gridColor = rootStyle.getPropertyValue('--chart-grid').trim() || 'rgba(255,255,255,0.1)';
+            const textColor = rootStyle.getPropertyValue('--chart-text').trim() || '#94a3b8';
+
+            // Format data for ChartJS: [{x, y}]
+            const linearPoints = scatterData.actual.map((act, i) => ({ x: act, y: scatterData.linear_pred[i] }));
+            const polyPoints = scatterData.actual.map((act, i) => ({ x: act, y: scatterData.poly_pred[i] }));
+            
+            // Ideal Line [min actual, max actual]
+            const minAct = Math.min(...scatterData.actual);
+            const maxAct = Math.max(...scatterData.actual);
+            const idealLine = [{x: minAct, y: minAct}, {x: maxAct, y: maxAct}];
+
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            chartInstance = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Ideal Perfect Prediction',
+                            data: idealLine,
+                            type: 'line',
+                            borderColor: '#10b981', // Success color
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false
+                        },
+                        {
+                            label: 'Polynomial Predictions',
+                            data: polyPoints,
+                            backgroundColor: 'rgba(139, 92, 246, 0.6)', // Accent
+                            borderColor: 'rgba(139, 92, 246, 1)',
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: 'Linear Predictions',
+                            data: linearPoints,
+                            backgroundColor: 'rgba(59, 130, 246, 0.6)', // Info
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { 
+                            labels: { color: textColor, font: {family: 'Inter', size: window.innerWidth < 600 ? 10 : 12} },
+                            position: window.innerWidth < 600 ? 'bottom' : 'top'
+                        },
+                        tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', titleFont: {family: 'Inter'}, bodyFont: {family: 'Inter'} }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Actual Property Price ($)', color: textColor, font: {family: 'Inter'} },
+                            grid: { color: gridColor },
+                            ticks: { color: textColor }
+                        },
+                        y: {
+                            title: { display: true, text: 'Predicted Model Price ($)', color: textColor, font: {family: 'Inter'} },
+                            grid: { color: gridColor },
+                            ticks: { color: textColor }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChartTheme(theme) {
+            if(!chartInstance) return;
+            
+            const rootStyle = getComputedStyle(document.documentElement);
+            const gridColor = theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+            const textColor = theme === 'dark' ? '#94a3b8' : '#475569';
+
+            chartInstance.options.plugins.legend.labels.color = textColor;
+            chartInstance.options.scales.x.title.color = textColor;
+            chartInstance.options.scales.x.grid.color = gridColor;
+            chartInstance.options.scales.x.ticks.color = textColor;
+            
+            chartInstance.options.scales.y.title.color = textColor;
+            chartInstance.options.scales.y.grid.color = gridColor;
+            chartInstance.options.scales.y.ticks.color = textColor;
+            
+            chartInstance.update();
+        }
+
+        // Trigger manual prediction on load
+        document.getElementById('predictBtn').click();
+
+    </script>
+</body>
+</html>
