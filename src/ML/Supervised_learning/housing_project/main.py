@@ -60,7 +60,7 @@ def predict():
 def train():
     try:
         # Load the data
-        data_path = r"C:\Users\Ahmed\Desktop\DEPI\DEPI Round 4\MLE SESSION TASKS\DEPI_Round4_AMIT_MLE\src\ML\Supervised_learning\housing_project\data\housing.csv"
+        data_path = r"C:\Users\Ahmed\Desktop\DEPI\DEPI Round 4\MLE SESSION TASKS\DEPI_Round4_AMIT_MLE\clean-repo\src\ML\Supervised_learning\housing_project\data\housing.csv"
         data = data_loader(data_path)
 
         # split the data
