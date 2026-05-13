@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Draw a handwritten digit and let an AI neural network predict it in real-time. Built with TensorFlow/Keras and Flask.">
+    <title>MNIST Digit Recognizer — AI Handwriting Prediction</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        /* ── Reset & Base ─────────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-primary:    #0a0a0f;
+            --bg-secondary:  #12121a;
+            --bg-card:       #16161f;
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --border-glow:   rgba(99, 102, 241, 0.25);
+            --text-primary:  #f0f0f5;
+            --text-secondary:#9191a8;
+            --text-muted:    #5e5e76;
+            --accent:        #818cf8;
+            --accent-dim:    #6366f1;
+            --accent-glow:   rgba(99, 102, 241, 0.35);
+            --success:       #34d399;
+            --success-glow:  rgba(52, 211, 153, 0.25);
+            --danger:        #f87171;
+            --canvas-size:   280px;
+            --radius:        16px;
+            --radius-sm:     10px;
+            --transition:    0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        /* Animated gradient background */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 600px 400px at 20% 10%, rgba(99,102,241,0.08), transparent),
+                radial-gradient(ellipse 500px 350px at 80% 80%, rgba(52,211,153,0.06), transparent);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── Header ───────────────────────────────────────────────── */
+        header {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 48px 24px 8px;
+            max-width: 600px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--accent);
+            background: rgba(99,102,241,0.1);
+            border: 1px solid rgba(99,102,241,0.18);
+            border-radius: 100px;
+            margin-bottom: 18px;
+        }
+
+        .badge .dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--accent);
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50%      { opacity: 0.4; transform: scale(0.8); }
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            line-height: 1.15;
+            background: linear-gradient(135deg, #f0f0f5 30%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            margin-top: 10px;
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            font-weight: 400;
+        }
+
+        /* ── Main Layout ──────────────────────────────────────────── */
+        main {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 28px;
+            padding: 32px 24px 64px;
+            max-width: 740px;
+            width: 100%;
+        }
+
+        /* ── Card ─────────────────────────────────────────────────── */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius);
+            padding: 28px;
+            transition: border-color var(--transition), box-shadow var(--transition);
+        }
+
+        .card:hover {
+            border-color: var(--border-glow);
+            box-shadow: 0 0 40px -12px var(--accent-glow);
+        }
+
+        .card-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 18px;
+        }
+
+        .card-label .icon {
+            width: 16px; height: 16px;
+            opacity: 0.5;
+        }
+
+        /* ── Canvas Card ──────────────────────────────────────────── */
+        .canvas-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            width: var(--canvas-size);
+            height: var(--canvas-size);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            border: 2px solid var(--border-subtle);
+            transition: border-color var(--transition), box-shadow var(--transition);
+            cursor: crosshair;
+        }
+
+        .canvas-wrapper:hover,
+        .canvas-wrapper.drawing {
+            border-color: var(--accent-dim);
+            box-shadow: 0 0 24px -6px var(--accent-glow);
+        }
+
+        #drawingCanvas {
+            display: block;
+            width: var(--canvas-size);
+            height: var(--canvas-size);
+            background: #000;
+            touch-action: none;
+        }
+
+        /* Hint overlay */
+        .canvas-hint {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+
+        .canvas-hint.hidden { opacity: 0; }
+
+        .canvas-hint svg {
+            width: 36px; height: 36px;
+            opacity: 0.18;
+        }
+
+        .canvas-hint span {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* ── Buttons ──────────────────────────────────────────────── */
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+            width: 100%;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px 0;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+            transition: all var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-predict {
+            background: linear-gradient(135deg, var(--accent-dim) 0%, #818cf8 100%);
+            color: #fff;
+            box-shadow: 0 4px 20px -4px var(--accent-glow);
+        }
+
+        .btn-predict:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 28px -4px var(--accent-glow);
+        }
+
+        .btn-predict:active { transform: translateY(0); }
+
+        .btn-predict:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-clear {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-subtle);
+        }
+
+        .btn-clear:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-primary);
+            border-color: rgba(255,255,255,0.12);
+        }
+
+        /* ── Result Card ──────────────────────────────────────────── */
+        .result-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 260px;
+        }
+
+        .result-display {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+        }
+
+        /* Big predicted digit */
+        .digit-showcase {
+            position: relative;
+            width: 140px;
+            height: 140px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: linear-gradient(145deg, rgba(99,102,241,0.08), rgba(52,211,153,0.05));
+            border: 2px solid var(--border-subtle);
+            transition: all 0.5s ease;
+        }
+
+        .digit-showcase.active {
+            border-color: var(--accent-dim);
+            box-shadow: 0 0 60px -10px var(--accent-glow);
+        }
+
+        .digit-value {
+            font-size: 72px;
+            font-weight: 900;
+            letter-spacing: -0.04em;
+            color: var(--text-muted);
+            transition: color 0.4s ease, transform 0.4s ease;
+        }
+
+        .digit-showcase.active .digit-value {
+            color: var(--accent);
+            transform: scale(1.08);
+        }
+
+        /* Confidence meter */
+        .confidence-section {
+            width: 100%;
+            text-align: center;
+        }
+
+        .confidence-label {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+
+        .confidence-bar-track {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.04);
+            border-radius: 100px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .confidence-bar-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 100px;
+            background: linear-gradient(90deg, var(--accent-dim), var(--success));
+            transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .confidence-value {
+            margin-top: 8px;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-muted);
+            transition: color 0.4s ease;
+        }
+
+        .confidence-value.active {
+            color: var(--success);
+        }
+
+        /* Probabilities grid */
+        .probabilities {
+            width: 100%;
+            margin-top: 6px;
+        }
+
+        .probabilities .card-label { margin-bottom: 12px; }
+
+        .prob-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+        }
+
+        .prob-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 0;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid transparent;
+            transition: all var(--transition);
+        }
+
+        .prob-item.highlight {
+            background: rgba(99,102,241,0.1);
+            border-color: rgba(99,102,241,0.2);
+        }
+
+        .prob-digit {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-secondary);
+        }
+
+        .prob-item.highlight .prob-digit {
+            color: var(--accent);
+        }
+
+        .prob-pct {
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        .prob-item.highlight .prob-pct {
+            color: var(--accent);
+        }
+
+        /* Status message */
+        .status-msg {
+            margin-top: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            min-height: 18px;
+            transition: color var(--transition);
+        }
+
+        .status-msg.error { color: var(--danger); }
+        .status-msg.success { color: var(--success); }
+
+        /* ── Spinner ──────────────────────────────────────────────── */
+        .spinner {
+            display: none;
+            width: 20px; height: 20px;
+            border: 2.5px solid rgba(255,255,255,0.15);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.65s linear infinite;
+            margin: 0 auto;
+        }
+
+        .spinner.visible { display: block; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Footer ───────────────────────────────────────────────── */
+        footer {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 0 24px 32px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        /* ── Preprocessing Preview ────────────────────────────────── */
+        .preview-section {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 6px;
+        }
+
+        .preview-label {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        #previewCanvas {
+            width: 56px;
+            height: 56px;
+            border-radius: 6px;
+            border: 1px solid var(--border-subtle);
+            image-rendering: pixelated;
+            background: #000;
+        }
+
+        /* ── Responsive ───────────────────────────────────────────── */
+        @media (max-width: 640px) {
+            main { flex-direction: column; align-items: center; }
+            .result-card { min-width: 0; width: 100%; max-width: 340px; }
+            h1 { font-size: 26px; }
+        }
+    </style>
+</head>
+
+<body>
+
+<!-- ─── Header ────────────────────────────────────────────────────── -->
+<header>
+    <div class="badge">
+        <span class="dot"></span>
+        Neural Network — Live
+    </div>
+    <h1>Handwritten Digit Recognizer</h1>
+    <p class="subtitle">
+        Draw any digit from 0–9 on the canvas and let the AI predict it in real-time.
+        Powered by a neural network trained on the MNIST dataset.
+    </p>
+</header>
+
+<!-- ─── Main ──────────────────────────────────────────────────────── -->
+<main>
+
+    <!-- Canvas Card -->
+    <div class="card canvas-card">
+        <div class="card-label">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+            Draw Here
+        </div>
+
+        <div class="canvas-wrapper" id="canvasWrapper">
+            <canvas id="drawingCanvas" width="280" height="280"></canvas>
+            <div class="canvas-hint" id="canvasHint">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                </svg>
+                <span>Draw a digit…</span>
+            </div>
+        </div>
+
+        <div class="btn-row">
+            <button class="btn btn-predict" id="btnPredict" onclick="handlePredict()">
+                Predict
+            </button>
+            <button class="btn btn-clear" id="btnClear" onclick="handleClear()">
+                Clear
+            </button>
+        </div>
+
+        <!-- Preprocessing Preview (28×28 model input) -->
+        <div class="preview-section" id="previewSection" style="display: none;">
+            <span class="preview-label">28×28 Model Input</span>
+            <canvas id="previewCanvas" width="28" height="28"></canvas>
+        </div>
+    </div>
+
+    <!-- Result Card -->
+    <div class="card result-card">
+        <div class="card-label">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            Prediction
+        </div>
+
+        <div class="result-display">
+
+            <!-- Big digit -->
+            <div class="digit-showcase" id="digitShowcase">
+                <span class="digit-value" id="digitValue">?</span>
+            </div>
+
+            <!-- Confidence bar -->
+            <div class="confidence-section">
+                <div class="confidence-label">Confidence</div>
+                <div class="confidence-bar-track">
+                    <div class="confidence-bar-fill" id="confidenceBar"></div>
+                </div>
+                <div class="confidence-value" id="confidenceValue">—</div>
+            </div>
+
+            <!-- All-class probabilities -->
+            <div class="probabilities">
+                <div class="card-label">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    All Probabilities
+                </div>
+                <div class="prob-grid" id="probGrid">
+                    <!-- JS fills this -->
+                </div>
+            </div>
+
+            <div class="spinner" id="spinner"></div>
+            <div class="status-msg" id="statusMsg">Draw a digit and click Predict</div>
+        </div>
+    </div>
+</main>
+
+<footer>
+    MNIST Neural Network &middot; TensorFlow / Keras &middot; Flask
+</footer>
+
+<!-- ─── JavaScript ────────────────────────────────────────────────── -->
+<script>
+(function () {
+    "use strict";
+
+    // ── DOM refs ─────────────────────────────────────────────────
+    const canvas       = document.getElementById("drawingCanvas");
+    const ctx          = canvas.getContext("2d");
+    const wrapper      = document.getElementById("canvasWrapper");
+    const hint         = document.getElementById("canvasHint");
+    const btnPredict   = document.getElementById("btnPredict");
+    const digitShowcase= document.getElementById("digitShowcase");
+    const digitValue   = document.getElementById("digitValue");
+    const confidenceBar= document.getElementById("confidenceBar");
+    const confValue    = document.getElementById("confidenceValue");
+    const probGrid     = document.getElementById("probGrid");
+    const spinner      = document.getElementById("spinner");
+    const statusMsg    = document.getElementById("statusMsg");
+    const previewCanvas= document.getElementById("previewCanvas");
+    const previewCtx   = previewCanvas.getContext("2d");
+    const previewSection = document.getElementById("previewSection");
+
+    // ── State ────────────────────────────────────────────────────
+    let isDrawing = false;
+    let hasDrawn  = false;
+
+    // ── Canvas init ──────────────────────────────────────────────
+    function initCanvas() {
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.lineCap   = "round";
+        ctx.lineJoin  = "round";
+        ctx.lineWidth = 18;
+        ctx.strokeStyle = "#ffffff";
+    }
+    initCanvas();
+
+    // Build prob grid placeholders
+    for (let i = 0; i < 10; i++) {
+        const item = document.createElement("div");
+        item.className = "prob-item";
+        item.id = "prob-" + i;
+        item.innerHTML = `<span class="prob-digit">${i}</span><span class="prob-pct">—</span>`;
+        probGrid.appendChild(item);
+    }
+
+    // ── Drawing events ───────────────────────────────────────────
+    function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width  / rect.width;
+        const scaleY = canvas.height / rect.height;
+        if (e.touches) {
+            return {
+                x: (e.touches[0].clientX - rect.left) * scaleX,
+                y: (e.touches[0].clientY - rect.top)  * scaleY
+            };
+        }
+        return {
+            x: (e.clientX - rect.left) * scaleX,
+            y: (e.clientY - rect.top)  * scaleY
+        };
+    }
+
+    function startDraw(e) {
+        e.preventDefault();
+        isDrawing = true;
+        if (!hasDrawn) {
+            hasDrawn = true;
+            hint.classList.add("hidden");
+        }
+        wrapper.classList.add("drawing");
+        const pos = getPos(e);
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y);
+    }
+
+    function draw(e) {
+        if (!isDrawing) return;
+        e.preventDefault();
+        const pos = getPos(e);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y);
+    }
+
+    function stopDraw() {
+        isDrawing = false;
+        wrapper.classList.remove("drawing");
+    }
+
+    // Mouse events
+    canvas.addEventListener("mousedown",  startDraw);
+    canvas.addEventListener("mousemove",  draw);
+    canvas.addEventListener("mouseup",    stopDraw);
+    canvas.addEventListener("mouseleave", stopDraw);
+
+    // Touch events
+    canvas.addEventListener("touchstart", startDraw, { passive: false });
+    canvas.addEventListener("touchmove",  draw,      { passive: false });
+    canvas.addEventListener("touchend",   stopDraw);
+
+    // ── Image preprocessing (MNIST-MATCHING PIPELINE) ──────────────
+    //
+    // Steps:
+    //   1. Capture 280×280 canvas → grayscale matrix
+    //   2. Binarize (threshold > 50)
+    //   3. Connected-component analysis → keep largest region
+    //   4. Tight bounding-box crop
+    //   5. Aspect-ratio-preserving resize into 20×20 box
+    //   6. Center on 28×28 canvas using center-of-mass
+    //   7. Gaussian blur (σ ≈ 1.0) to mimic MNIST softness
+    //   8. Normalize to [0, 1]
+    //   9. Flatten to 784
+    // ─────────────────────────────────────────────────────────────────
+
+    /**
+     * Convert the 280×280 RGBA canvas to a grayscale 2D array.
+     * Returns { gray: Uint8Array[280*280], w: 280, h: 280 }
+     */
+    function canvasToGrayscale() {
+        const w = canvas.width, h = canvas.height;
+        const imageData = ctx.getImageData(0, 0, w, h);
+        const rgba = imageData.data;
+        const gray = new Uint8Array(w * h);
+        for (let i = 0; i < w * h; i++) {
+            const r = rgba[i * 4];
+            const g = rgba[i * 4 + 1];
+            const b = rgba[i * 4 + 2];
+            gray[i] = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+        }
+        return { gray, w, h };
+    }
+
+    /**
+     * Binarize: pixels > threshold → 255, else 0.
+     */
+    function binarize(gray, len, threshold = 50) {
+        const bin = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bin[i] = gray[i] > threshold ? 255 : 0;
+        }
+        return bin;
+    }
+
+    /**
+     * Connected-component labelling via flood-fill (4-connected).
+     * Returns the binarized image with only the largest component kept.
+     */
+    function keepLargestComponent(bin, w, h) {
+        const labels = new Int32Array(w * h);  // 0 = unlabelled
+        let nextLabel = 1;
+        const componentSizes = {};  // label → pixel count
+
+        // BFS flood-fill
+        function floodFill(startIdx, label) {
+            const queue = [startIdx];
+            labels[startIdx] = label;
+            let count = 0;
+            while (queue.length > 0) {
+                const idx = queue.pop();
+                count++;
+                const x = idx % w;
+                const y = Math.floor(idx / w);
+                // 4-connected neighbors
+                const neighbors = [];
+                if (x > 0)     neighbors.push(idx - 1);
+                if (x < w - 1) neighbors.push(idx + 1);
+                if (y > 0)     neighbors.push(idx - w);
+                if (y < h - 1) neighbors.push(idx + w);
+                for (const n of neighbors) {
+                    if (bin[n] > 0 && labels[n] === 0) {
+                        labels[n] = label;
+                        queue.push(n);
+                    }
+                }
+            }
+            return count;
+        }
+
+        for (let i = 0; i < w * h; i++) {
+            if (bin[i] > 0 && labels[i] === 0) {
+                const size = floodFill(i, nextLabel);
+                componentSizes[nextLabel] = size;
+                nextLabel++;
+            }
+        }
+
+        // No components found
+        if (nextLabel === 1) return null;
+
+        // Find largest component
+        let maxLabel = 1, maxSize = 0;
+        for (const [lbl, sz] of Object.entries(componentSizes)) {
+            if (sz > maxSize) { maxSize = sz; maxLabel = parseInt(lbl); }
+        }
+
+        // Zero out everything except the largest component
+        const result = new Uint8Array(w * h);
+        for (let i = 0; i < w * h; i++) {
+            result[i] = labels[i] === maxLabel ? bin[i] : 0;
+        }
+        return result;
+    }
+
+    /**
+     * Find the tight bounding box of non-zero pixels.
+     * Returns { minX, minY, maxX, maxY } or null if empty.
+     */
+    function findBoundingBox(img, w, h) {
+        let minX = w, minY = h, maxX = -1, maxY = -1;
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                if (img[y * w + x] > 0) {
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
+                }
+            }
+        }
+        if (maxX < 0) return null;
+        return { minX, minY, maxX, maxY };
+    }
+
+    /**
+     * Crop the image to the bounding box.
+     * Returns { cropped: Float64Array, cw, ch }
+     */
+    function cropImage(img, w, bb) {
+        const cw = bb.maxX - bb.minX + 1;
+        const ch = bb.maxY - bb.minY + 1;
+        const cropped = new Float64Array(cw * ch);
+        for (let y = 0; y < ch; y++) {
+            for (let x = 0; x < cw; x++) {
+                cropped[y * cw + x] = img[(y + bb.minY) * w + (x + bb.minX)];
+            }
+        }
+        return { cropped, cw, ch };
+    }
+
+    /**
+     * Resize image (bilinear interpolation) to fit inside targetW × targetH
+     * while preserving aspect ratio.
+     * Returns { resized: Float64Array, rw, rh }
+     */
+    function resizeToFit(img, srcW, srcH, targetW, targetH) {
+        const scale = Math.min(targetW / srcW, targetH / srcH);
+        const rw = Math.max(1, Math.round(srcW * scale));
+        const rh = Math.max(1, Math.round(srcH * scale));
+        const resized = new Float64Array(rw * rh);
+
+        for (let y = 0; y < rh; y++) {
+            for (let x = 0; x < rw; x++) {
+                // Map back to source coordinates
+                const srcX = (x + 0.5) * (srcW / rw) - 0.5;
+                const srcY = (y + 0.5) * (srcH / rh) - 0.5;
+
+                const x0 = Math.floor(srcX);
+                const y0 = Math.floor(srcY);
+                const x1 = Math.min(x0 + 1, srcW - 1);
+                const y1 = Math.min(y0 + 1, srcH - 1);
+                const xf = srcX - x0;
+                const yf = srcY - y0;
+
+                const cx0 = Math.max(0, x0);
+                const cy0 = Math.max(0, y0);
+
+                // Bilinear interpolation
+                const topLeft     = img[cy0 * srcW + cx0];
+                const topRight    = img[cy0 * srcW + x1];
+                const bottomLeft  = img[y1  * srcW + cx0];
+                const bottomRight = img[y1  * srcW + x1];
+
+                const top    = topLeft    + (topRight    - topLeft)    * xf;
+                const bottom = bottomLeft + (bottomRight - bottomLeft) * xf;
+                resized[y * rw + x] = top + (bottom - top) * yf;
+            }
+        }
+        return { resized, rw, rh };
+    }
+
+    /**
+     * Compute center of mass of the image.
+     * Returns { cx, cy }
+     */
+    function centerOfMass(img, w, h) {
+        let totalMass = 0, sumX = 0, sumY = 0;
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                const v = img[y * w + x];
+                totalMass += v;
+                sumX += x * v;
+                sumY += y * v;
+            }
+        }
+        if (totalMass === 0) return { cx: w / 2, cy: h / 2 };
+        return { cx: sumX / totalMass, cy: sumY / totalMass };
+    }
+
+    /**
+     * Place the resized digit onto a 28×28 canvas, centered by center-of-mass
+     * so that the center of mass sits at (14, 14) — the center of the 28×28 grid.
+     */
+    function centerOnCanvas(img, imgW, imgH) {
+        const out = new Float64Array(28 * 28); // all zeros (black background)
+        const com = centerOfMass(img, imgW, imgH);
+
+        // Offset so center-of-mass maps to (13.5, 13.5) — center of 28×28
+        const offsetX = Math.round(13.5 - com.cx);
+        const offsetY = Math.round(13.5 - com.cy);
+
+        for (let y = 0; y < imgH; y++) {
+            for (let x = 0; x < imgW; x++) {
+                const nx = x + offsetX;
+                const ny = y + offsetY;
+                if (nx >= 0 && nx < 28 && ny >= 0 && ny < 28) {
+                    out[ny * 28 + nx] = img[y * imgW + x];
+                }
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Apply Gaussian blur (3×3 kernel, σ ≈ 1.0) to mimic MNIST anti-aliasing.
+     */
+    function gaussianBlur(img, w, h) {
+        // 3×3 Gaussian kernel (σ ≈ 1.0), normalized
+        const kernel = [
+            1/16, 2/16, 1/16,
+            2/16, 4/16, 2/16,
+            1/16, 2/16, 1/16
+        ];
+        const out = new Float64Array(w * h);
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                let sum = 0;
+                for (let ky = -1; ky <= 1; ky++) {
+                    for (let kx = -1; kx <= 1; kx++) {
+                        const ny = Math.min(h - 1, Math.max(0, y + ky));
+                        const nx = Math.min(w - 1, Math.max(0, x + kx));
+                        sum += img[ny * w + nx] * kernel[(ky + 1) * 3 + (kx + 1)];
+                    }
+                }
+                out[y * w + x] = sum;
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Full MNIST-matching preprocessing pipeline.
+     * Returns { pixels: number[784], error: string|null }
+     */
+    function preprocessCanvas() {
+        // Step 1: Capture canvas → grayscale
+        const { gray, w, h } = canvasToGrayscale();
+
+        // Step 2: Binarize
+        const bin = binarize(gray, w * h, 50);
+
+        // Step 3: Connected-component analysis → keep largest region only
+        const cleaned = keepLargestComponent(bin, w, h);
+        if (!cleaned) {
+            return { pixels: null, error: "No digit detected. Please draw a digit." };
+        }
+
+        // Step 4: Find bounding box
+        const bb = findBoundingBox(cleaned, w, h);
+        if (!bb) {
+            return { pixels: null, error: "No digit detected. Please draw a digit." };
+        }
+
+        // Step 5: Crop tightly around the digit
+        const { cropped, cw, ch } = cropImage(cleaned, w, bb);
+
+        // Step 6: Resize to fit inside 20×20 box (MNIST convention)
+        const { resized, rw, rh } = resizeToFit(cropped, cw, ch, 20, 20);
+
+        // Step 7: Center on 28×28 canvas using center-of-mass
+        let final28 = centerOnCanvas(resized, rw, rh);
+
+        // Step 8: Gaussian blur to mimic MNIST softness
+        final28 = gaussianBlur(final28, 28, 28);
+
+        // Step 9: Normalize to [0, 1] and flatten
+        const pixels = new Float32Array(784);
+        let maxVal = 0;
+        for (let i = 0; i < 784; i++) {
+            if (final28[i] > maxVal) maxVal = final28[i];
+        }
+        if (maxVal > 0) {
+            for (let i = 0; i < 784; i++) {
+                pixels[i] = final28[i] / maxVal;  // Normalize to [0, 1]
+            }
+        }
+
+        return { pixels: Array.from(pixels), error: null };
+    }
+
+    /**
+     * Render the preprocessed 784-pixel array onto the 28×28 preview canvas.
+     */
+    function renderPreview(pixels) {
+        const imgData = previewCtx.createImageData(28, 28);
+        for (let i = 0; i < 784; i++) {
+            const v = Math.round(pixels[i] * 255);
+            imgData.data[i * 4]     = v; // R
+            imgData.data[i * 4 + 1] = v; // G
+            imgData.data[i * 4 + 2] = v; // B
+            imgData.data[i * 4 + 3] = 255; // A
+        }
+        previewCtx.putImageData(imgData, 0, 0);
+        previewSection.style.display = "flex";
+    }
+
+    // ── Predict ──────────────────────────────────────────────────
+    async function handlePredict() {
+        if (!hasDrawn) {
+            setStatus("Please draw a digit first.", "error");
+            return;
+        }
+
+        // Disable button & show spinner
+        btnPredict.disabled = true;
+        spinner.classList.add("visible");
+        setStatus("Analyzing…", "");
+
+        try {
+            const { pixels, error: prepError } = preprocessCanvas();
+
+            if (prepError) {
+                setStatus(prepError, "error");
+                return;
+            }
+
+            // Show preprocessed 28×28 preview
+            renderPreview(pixels);
+
+            const response = await fetch("/predict", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ image: pixels })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                setStatus(result.error || "Server error.", "error");
+                return;
+            }
+
+            // Update UI
+            const pred = result.prediction;
+            const conf = result.confidence;
+            const pct  = (conf * 100).toFixed(1);
+
+            // Digit
+            digitValue.textContent = pred;
+            digitShowcase.classList.add("active");
+
+            // Confidence bar
+            confidenceBar.style.width = pct + "%";
+            confValue.textContent = pct + "%";
+            confValue.classList.add("active");
+
+            // Probabilities grid (if server returns them)
+            if (result.probabilities) {
+                for (let i = 0; i < 10; i++) {
+                    const item = document.getElementById("prob-" + i);
+                    const p = (result.probabilities[i] * 100).toFixed(1);
+                    item.querySelector(".prob-pct").textContent = p + "%";
+                    item.classList.toggle("highlight", i === pred);
+                }
+            } else {
+                // Approximate: show predicted class highlighted
+                for (let i = 0; i < 10; i++) {
+                    const item = document.getElementById("prob-" + i);
+                    if (i === pred) {
+                        item.querySelector(".prob-pct").textContent = pct + "%";
+                        item.classList.add("highlight");
+                    } else {
+                        item.querySelector(".prob-pct").textContent = "—";
+                        item.classList.remove("highlight");
+                    }
+                }
+            }
+
+            setStatus("Prediction complete!", "success");
+
+        } catch (err) {
+            setStatus("Connection error: " + err.message, "error");
+        } finally {
+            btnPredict.disabled = false;
+            spinner.classList.remove("visible");
+        }
+    }
+
+    // ── Clear ────────────────────────────────────────────────────
+    function handleClear() {
+        initCanvas();
+        hasDrawn = false;
+        hint.classList.remove("hidden");
+
+        // Reset result UI
+        digitValue.textContent = "?";
+        digitShowcase.classList.remove("active");
+        confidenceBar.style.width = "0%";
+        confValue.textContent = "—";
+        confValue.classList.remove("active");
+
+        for (let i = 0; i < 10; i++) {
+            const item = document.getElementById("prob-" + i);
+            item.querySelector(".prob-pct").textContent = "—";
+            item.classList.remove("highlight");
+        }
+
+        setStatus("Draw a digit and click Predict", "");
+
+        // Hide preview
+        previewSection.style.display = "none";
+        previewCtx.clearRect(0, 0, 28, 28);
+    }
+
+    // ── Status helper ────────────────────────────────────────────
+    function setStatus(text, type) {
+        statusMsg.textContent = text;
+        statusMsg.className = "status-msg" + (type ? " " + type : "");
+    }
+
+    // Expose to onclick
+    window.handlePredict = handlePredict;
+    window.handleClear   = handleClear;
+
+})();
+</script>
+
+</body>
+</html>

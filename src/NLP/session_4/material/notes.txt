@@ -1,0 +1,95 @@
+# session 4 NLP, attention and tranformers
+
+following up the RNN, LSTM
+
+starting here --||=> 
+
+
+LSTM visual , figure 1.png
+
+in machine translation
+inserting vectors of tokens to neural network, once the sentence trained it saved in a bottomneck to save the context in order to translate
+
+Encoding , decoding model, figure 2.png
+
+Encoding model after Rnn -> past to softmax for probabilites for context probability score --> decoding model, the other RNN translator model to get the y_hat the target translated sentence
+ 
+this is the earlier approach for the transformers 'not sure if this a right term'
+
+later on, passsing word by word is computational challenge, so the paper named by attention is all you need got published
+
+
+the transformer model architecture figure 3.png
+
+encoding --
+
+* input embedding 
+
+transform each word to vector of 512 row, also each word get id
+
+these transformed matrix is an input for the postional encoding
+
+positional encoding figure 4.png
+
+
+* positional encoding using trignomitrical functions, to be transformed to positional embedding
+
+the key is to help understanding the context, without it you may have two similer words like 'book' with differenet contextual meaning and the problem is that they will be saved with the same vectors throught the input embedding
+
+
+* self attention -> Q K V
+
+query -> n words * n words, like a covariance matrix between the sentence
+
+is outputed by one copy and one transposed copy to get the 6*6 , 6 here which is mentioned is N words
+
+scaled dot-product attention
+
+softmax( (Q.transpose(K) ) / (sqrt(D.K)) ) * V
+
+
+sqrt(d.k) for normalization
+
+Q K V is like copies of the date 
+
+why there is not bias in the weight assignment due to training the nlp transformer model of Q K V?
+
+just because we dont want to change the intercept that leads to meaning change of the context matrix
+
+
+
+* multi head attention
+
+    |---------------------------|
+    |Q * wQ -> Q_hat -> softmax-|
+SUM |K * wK -> K_hat -> softmax-| wOutput => n * 512 matrix 'Check for the algorithm'
+    |V * wV -> V_hat -> softmax-|
+    |---------------------------|
+
+
+
+-- layer normalization -> require understanding
+
+-- skip connecntion -> when learning curve rise again in the loss function, we start make weights zeros for the blocks affecting the learning badly, so when the addition to zero weights well skip the blocks
+
+
+* feed forward -> although we already added weights to our data and we made the multi-head attention, we only represented the data in better way, now the data is ready to get trained in strong brain 'feed forward' fully connented layer to get feature extraction 
+
+after that we add norm to prevent low values 'vanishing'
+
+
+
+--- output
+
+same steps but, the mutli head attention -> masked multi head attention
+
+masked mutil head attention -> useful for avoiding cheating by focusing on the current input and before it not the input after it
+
+after the normaliztion, we pass only the V to the multi head attention, while the Q and V is passed from the feed forward in the encoder, the main input layer
+
+then feed forward then normalization then (Linear) then softmax
+
+
+inference, in time step 1 we use the encoder input, but after that we pass that sentence in the encoder output layer directly
+
+
